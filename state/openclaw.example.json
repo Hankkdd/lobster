@@ -1,0 +1,259 @@
+{
+  "gateway": {
+    "mode": "local",
+    "controlUi": {
+      "allowedOrigins": [
+        "http://127.0.0.1:18789",
+        "http://localhost:18789"
+      ]
+    }
+  },
+  "agents": {
+    "defaults": {
+      "skipBootstrap": true,
+      "model": {
+        "primary": "openai/gpt-6.1-sol"
+      },
+      "models": {
+        "openai/gpt-6.1-sol": {
+          "agentRuntime": {
+            "id": "openclaw"
+          }
+        }
+      },
+      "modelPolicy": {
+        "allow": [
+          "openai/gpt-6.1-sol"
+        ]
+      },
+      "systemAgent": {
+        "agentId": "main"
+      },
+      "heartbeat": {
+        "agentId": "main"
+      }
+    },
+    "entries": {
+      "main": {
+        "tools": {
+          "deny": [
+            "hub__*"
+          ]
+        },
+        "workspace": "/home/node/.openclaw/workspace"
+      },
+      "hub": {
+        "workspace": "/home/node/.openclaw/workspace-hub",
+        "tools": {
+          "allow": [
+            "hub__*"
+          ]
+        }
+      },
+      "family": {
+        "workspace": "/home/node/.openclaw/workspace-family",
+        "tools": {
+          "allow": [
+            "web_search",
+            "web_fetch",
+            "view_image",
+            "fbwatch__video",
+            "fbwatch__fx"
+          ]
+        }
+      }
+    },
+    "ownership": "explicit"
+  },
+  "tools": {
+    "profile": "minimal",
+    "alsoAllow": [
+      "web_search",
+      "web_fetch",
+      "view_image",
+      "fbwatch__*",
+      "hub__*"
+    ],
+    "deny": [
+      "group:runtime",
+      "group:fs",
+      "group:ui",
+      "group:automation",
+      "group:nodes",
+      "group:sessions"
+    ],
+    "web": {
+      "search": {
+        "provider": "codex"
+      },
+      "fetch": {
+        "ssrfPolicy": {
+          "blockedHostnames": [
+            "youtube.com",
+            "*.youtube.com",
+            "youtu.be",
+            "facebook.com",
+            "*.facebook.com",
+            "fb.com",
+            "*.fb.com",
+            "myship.7-11.com.tw"
+          ]
+        }
+      }
+    },
+    "codeMode": {
+      "enabled": false
+    },
+    "toolSearch": false
+  },
+  "plugins": {
+    "entries": {
+      "openai": {
+        "enabled": true
+      },
+      "discord": {
+        "enabled": true
+      },
+      "searxng": {
+        "enabled": false
+      },
+      "codex": {
+        "enabled": true
+      }
+    }
+  },
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "dmPolicy": "disabled",
+      "groupPolicy": "allowlist",
+      "configWrites": false,
+      "replyToMode": "first",
+      "guilds": {
+        "<discord guild id>": {
+          "requireMention": true,
+          "users": ["<discord user id>"],
+          "channels": {
+            "<discord channel id>": {
+              "enabled": true,
+              "requireMention": true,
+              "users": ["<discord user id>"]
+            }
+          }
+        }
+      },
+      "allowBots": "mentions",
+      "accounts": {
+        "default": {
+          "token": {
+            "source": "env",
+            "provider": "default",
+            "id": "DISCORD_BOT_TOKEN"
+          },
+          "applicationId": "<discord application id>"
+        },
+        "second": {
+          "token": {
+            "source": "env",
+            "provider": "default",
+            "id": "DISCORD_SECOND_BOT_TOKEN"
+          },
+          "applicationId": "<second discord application id>",
+          "enabled": false
+        }
+      }
+    }
+  },
+  "meta": {
+    "migrations": {
+      "modelPolicyAllowlist": true,
+      "utilityModelSeparation": true,
+      "webhookListeners": true
+    },
+    "lastTouchedVersion": "2026.11.2"
+  },
+  "wizard": {
+    "lastRunAt": "2026-11-11T10:41:23.842Z",
+    "lastRunVersion": "2026.11.2",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "skills": {
+    "entries": {
+      "openai-whisper-api": {
+        "enabled": false
+      },
+      "sherpa-onnx-tts": {
+        "enabled": false
+      }
+    }
+  },
+  "mcp": {
+    "servers": {
+      "fbwatch": {
+        "url": "http://fbwatch-mcp:8080/mcp",
+        "transport": "streamable-http",
+        "enabled": true,
+        "headers": {
+          "Authorization": "Bearer ${FBWATCH_MCP_TOKEN}"
+        },
+        "connectionTimeoutMs": 5000,
+        "requestTimeoutMs": 30000
+      },
+      "hub": {
+        "url": "http://hub-mcp:8080/mcp",
+        "transport": "streamable-http",
+        "enabled": true,
+        "headers": {
+          "Authorization": "Bearer ${HUB_MCP_TOKEN}"
+        },
+        "connectionTimeoutMs": 5000,
+        "requestTimeoutMs": 45000
+      }
+    }
+  },
+  "messages": {
+    "queue": {
+      "byChannel": {
+        "discord": "followup"
+      }
+    }
+  },
+  "session": {
+    "reset": {
+      "mode": "daily",
+      "atHour": 4
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "family",
+      "comment": "second bot, its own Discord application: the family-chat agent",
+      "match": {
+        "channel": "discord",
+        "accountId": "second"
+      }
+    },
+    {
+      "agentId": "hub",
+      "comment": "#agent-hub on the owner's server: the Hub agent, owner only",
+      "match": {
+        "channel": "discord",
+        "accountId": "default",
+        "guildId": "<discord guild id>",
+        "peer": {
+          "kind": "channel",
+          "id": "<discord channel id>"
+        }
+      }
+    },
+    {
+      "agentId": "main",
+      "comment": "everything else: the price-check agent",
+      "match": {
+        "channel": "discord",
+        "accountId": "default"
+      }
+    }
+  ]
+}

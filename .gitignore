@@ -1,0 +1,17 @@
+# 用萬用字元而不是只寫一個名字：備份與變體（.env.bak、.env.local）一樣帶著憑證
+.env*
+!.env.example
+
+# state/ 裡的 SQLite 存著明文 OAuth token，只追蹤設定檔
+state/*
+!state/openclaw.example.json
+auth-secrets/
+cache/
+
+# 實際的工作區：persona、使用者資料、bot 寫的記憶，全是私人內容。
+# 版控裡只放 workspace.example/ 這份範本。
+workspace/
+workspace-*/
+
+# go build 的產物
+hub-mcp/hubmcp

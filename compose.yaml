@@ -1,0 +1,110 @@
+# 龍蝦（OpenClaw），跑在 GB10 上。
+# 改自 OpenClaw v2026.11.2 官方 docker-compose.yml，差異：
+# - 固定映像版本，不追 latest
+# - 只對 127.0.0.1 開放 Control UI，不開 bridge / msteams port
+# - state / workspace 用本目錄的 bind mount，容器以宿主機使用者的 uid 執行
+# - web_search 走 Codex 託管搜尋（訂閱額度）；SearXNG 試過，公開搜尋引擎全被擋
+
+services:
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:2026.11.2}
+    # 用宿主機使用者的 uid 跑，state/ 裡的檔案才改得動。
+    # 映像預設 uid 1000 不一定是你，填 `id -u` 的結果。
+    user: "1002:1002"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_GATEWAY_PORT: "18789"
+      # 映像裡的 /home/node 屬於 uid 1000，快取改寫到掛進來的 cache/
+      npm_config_cache: /home/node/.cache/npm
+      TZ: Asia/Taipei
+    volumes:
+      - ./state:/home/node/.openclaw
+      - ./workspace:/home/node/.openclaw/workspace
+      # Hub bot（#agent-hub）的工作區，跟比價bot分開
+      - ./workspace-hub:/home/node/.openclaw/workspace-hub
+      # 第三個 agent 的工作區（選用；不需要就把這兩行刪掉）
+      - ./workspace-family:/home/node/.openclaw/workspace-family
+      - ./auth-secrets:/home/node/.config/openclaw
+      - ./cache:/home/node/.cache
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+    init: true
+    restart: unless-stopped
+    command: ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]
+    healthcheck:
+      test: ["CMD", "node", "dist/docker-healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:2026.11.2}
+    user: "1002:1002"
+    network_mode: "service:openclaw-gateway"
+    env_file:
+      - path: .env
+        required: true
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_GATEWAY_PORT: "18789"
+      # 映像裡的 /home/node 屬於 uid 1000，快取改寫到掛進來的 cache/
+      npm_config_cache: /home/node/.cache/npm
+      BROWSER: echo
+      TZ: Asia/Taipei
+    volumes:
+      - ./state:/home/node/.openclaw
+      - ./workspace:/home/node/.openclaw/workspace
+      - ./auth-secrets:/home/node/.config/openclaw
+      - ./cache:/home/node/.cache
+    stdin_open: true
+    tty: true
+    init: true
+    entrypoint: ["node", "dist/index.js"]
+    profiles: ["cli"]
+
+  # Hub bot用的 Agent Hub 工具。拿 Hub 的 remote token（Hub 自己限制了它能做的事），
+  # token 檔唯讀掛進來，不進 .env、不經過模型。
+  hub-mcp:
+    build: ./hub-mcp
+    user: "1002:1002"
+    environment:
+      HUB_URL: ${HUB_URL:?請在 .env 設定 HUB_URL}
+      HUB_TOKEN_FILE: /run/hub-remote-token
+      HUB_MCP_TOKEN: ${HUB_MCP_TOKEN:?請在 .env 設定 HUB_MCP_TOKEN}
+      HUB_REPOS: ${HUB_REPOS:-}
+      # 選填：任務跑完時用 #agent-hub 的 webhook tag bot回報
+      HUB_NOTIFY_WEBHOOK: ${HUB_NOTIFY_WEBHOOK:-}
+      HUB_NOTIFY_BOT_ID: ${HUB_NOTIFY_BOT_ID:-}
+    volumes:
+      - ${HUB_REMOTE_TOKEN_FILE:?請在 .env 設定 HUB_REMOTE_TOKEN_FILE}:/run/hub-remote-token:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
