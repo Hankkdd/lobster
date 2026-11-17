@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -34,7 +36,9 @@ func (f *fakeHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		f.posts = append(f.posts, r.URL.Path)
 		var b map[string]any
-		json.NewDecoder(r.Body).Decode(&b)
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil && !errors.Is(err, io.EOF) {
+			f.t.Errorf("decode %s body: %v", r.URL.Path, err)
+		}
 		f.bodies = append(f.bodies, b)
 	}
 	switch {
@@ -189,7 +193,9 @@ func TestWatcherNotifiesOnceWhenTaskStops(t *testing.T) {
 	got := make(chan map[string]any, 2)
 	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var b map[string]any
-		json.NewDecoder(r.Body).Decode(&b)
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			t.Errorf("decode webhook body: %v", err)
+		}
 		got <- b
 		w.WriteHeader(204)
 	}))

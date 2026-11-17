@@ -32,6 +32,13 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      # Rules and their reasons live in /.golangci.yml.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.15.0
+          working-directory: hub-mcp
+
       - name: go build
         run: go build ./...
 
