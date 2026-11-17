@@ -1,0 +1,35 @@
+# Lint holds bug checks and the hub-mcp boundaries a machine can check. No style rules: gofmt
+# already runs in CI, and each rule here exists because breaking it is a bug.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+    - depguard
+
+  settings:
+    staticcheck:
+      # SA = bugs. The S/ST/QF groups are simplification and style.
+      checks: ["SA*"]
+
+    depguard:
+      rules:
+        hub-mcp-only-calls-the-hub:
+          files: ["$all"]
+          deny:
+            - pkg: os/exec
+              desc: >-
+                hub-mcp turns Discord messages into Agent Hub calls. Its power is what the Hub's remote
+                token allows, nothing more, so it never runs commands itself. Add a Hub endpoint instead.
+
+  exclusions:
+    rules:
+      # A failed Close after reading, or a failed write to a response or test server, has nothing
+      # left to act on.
+      - linters: [errcheck]
+        text: "Error return value of `(.*\\.Close|fmt\\.Fprint\\w*)` is not checked"
