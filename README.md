@@ -45,6 +45,13 @@ of a heavier runtime and no usage API.
 
 Files under the workspace take effect on the next message — no restart.
 
+The video instructions expect fbwatch's paginated `video` tool (`offset`,
+`next_offset`, `has_more`). Deploy the matching fbwatch update first, then copy
+the video pagination rules from `workspace.example/AGENTS.md` into an existing
+deployment's workspace instructions. Updating the example alone does not change
+an existing deployment. The bot must follow every page before summarizing a
+whole video; YouTube playback timestamps do not select transcript pages.
+
 The real `workspace/` and `state/openclaw.json` are gitignored: they hold a
 persona, the owner's preferences and what the bot has learned about them, which
 is personal to each deployment. Copy the examples and edit.
